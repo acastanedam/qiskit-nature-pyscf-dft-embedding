@@ -41,6 +41,23 @@ nature_logging.set_levels_for_names(
 
 LOGGER.setLevel(LOG_LEVEL)
 
+callback_file = f"vqembd_callback.data"
+intermediate_info = {"nfev": [], "parameters": [], "energy": []}
+
+def callback(nfev, parameters, energy):
+    intermediate_info["nfev"].append(nfev)
+    intermediate_info["parameters"].append(parameters)
+    intermediate_info["energy"].append(energy)
+    output_list = [nfev, energy]
+    [output_list.append(x) for x in parameters]
+    with open(callback_file, "a") as interfile:
+        print(
+            *output_list,
+            sep=",",
+            file=interfile,
+            flush=True,
+        )
+
 def _main():
     omega = 1.0
 
@@ -92,7 +109,7 @@ def _main():
 
     algo = GroundStateEigensolver(mapper, solver)
 
-    dft_solver = DFTEmbeddingSolver(active_space, algo)
+    dft_solver = DFTEmbeddingSolver(active_space, algo, callback=callback)
 
     # NOTE: By default, no mixing will be applied to the active density.
     # Uncomment any of the following to apply the given mixing method.

@@ -17,6 +17,8 @@ This work is the latest derivation of the work published in J. Chem. Phys. 154, 
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 from copy import deepcopy
 
 import numpy as np
@@ -45,6 +47,7 @@ class DFTEmbeddingSolver:
         *,
         max_iter: int = 100,
         threshold: float = 1e-5,
+        callback: Callable[[int, np.ndarray, float], None] | None = None,
     ) -> None:
         """
         Args:
@@ -57,6 +60,7 @@ class DFTEmbeddingSolver:
         self.solver = solver
         self.max_iter = max_iter
         self.threshold = threshold
+        self.callback = callback
 
     def solve(self, driver: PySCFDriver, omega: float) -> ElectronicStructureResult:
         """Solves the actual DFT-Embedding problem by means of range-separation.
@@ -203,6 +207,13 @@ class DFTEmbeddingSolver:
             e_next = result.total_energies[0]
             residual = np.abs(e_prev - e_next)
             converged =  residual < self.threshold
+
+            if self.solver.solver.__class__.__name__ == "VQE":
+                if self.callback is not None:
+                    params = result.raw_result.optimal_point
+                    value = result.raw_result.optimal_value
+                    self.callback(n_iter, params, value)
+
             if n_iter > 1:
                 LOGGER.info(f"Residual a step {n_iter}: {residual}")
                 if self.solver.solver.__class__.__name__ == "VQE":
