@@ -86,7 +86,7 @@ def _main():
         )
 
         # setup optimizer
-        optimizer = SPSA()
+        optimizer = SPSA(maxiter=10)
 
         solver = VQE(estimator, ansatz, optimizer)
 

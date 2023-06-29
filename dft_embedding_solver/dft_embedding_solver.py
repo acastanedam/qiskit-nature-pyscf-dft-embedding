@@ -205,6 +205,9 @@ class DFTEmbeddingSolver:
             converged =  residual < self.threshold
             if n_iter > 1:
                 LOGGER.info(f"Residual a step {n_iter}: {residual}")
+                if self.solver.solver.__class__.__name__ == "VQE":
+                    optimal_point = result.raw_result.optimal_point
+                    self.solver.solver.initial_point = optimal_point
             if converged:
                 break
 
