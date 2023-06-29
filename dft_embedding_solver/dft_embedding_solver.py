@@ -203,7 +203,8 @@ class DFTEmbeddingSolver:
             e_next = result.total_energies[0]
             residual = np.abs(e_prev - e_next)
             converged =  residual < self.threshold
-            LOGGER.info(f"Residual a step {n_iter}: {residual}")
+            if n_iter > 1:
+                LOGGER.info(f"Residual a step {n_iter}: {residual}")
             if converged:
                 break
 

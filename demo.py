@@ -17,16 +17,21 @@ from qiskit_nature.second_q.drivers import MethodType, PySCFDriver
 from qiskit_nature.second_q.mappers import ParityMapper, QubitConverter
 from qiskit_nature.second_q.transformers import ActiveSpaceTransformer
 from qiskit_nature.settings import settings
+from qiskit_nature.second_q.circuit.library import HartreeFock
+from qiskit.circuit.library import EfficientSU2
+from qiskit.algorithms.optimizers import SPSA
+from qiskit_aer.primitives import Estimator as aer_estimator
+from qiskit_aer import AerSimulator
+from qiskit.algorithms.minimum_eigensolvers import VQE
 
 from dft_embedding_solver import DFTEmbeddingSolver
+
+from dft_embedding_solver.dft_embedding_solver import logging, LOGGER
+from qiskit_nature import logging as nature_logging
 
 settings.tensor_unwrapping = False
 settings.use_pauli_sum_op = False
 settings.use_symmetry_reduced_integrals = True
-
-
-from dft_embedding_solver.dft_embedding_solver import logging, LOGGER
-from qiskit_nature import logging as nature_logging
 
 LOG_LEVEL = logging.DEBUG
 logging.basicConfig(level=LOG_LEVEL)
@@ -49,14 +54,42 @@ def _main():
     )
 
     # specify active space
-    active_space = ActiveSpaceTransformer(4, 4)
+    num_particles = (2, 2)
+    num_electrons = np.sum(num_particles)
+    num_spatial_orbitals = 4
+    active_space = ActiveSpaceTransformer(num_electrons=num_electrons, num_spatial_orbitals=num_spatial_orbitals)
 
     # setup solver
-    mapper = ParityMapper(num_particles=(2, 2))
-    solver = NumPyMinimumEigensolver()
-    solver.filter_criterion = lambda state, val, aux: np.isclose(
-        aux["ParticleNumber"][0], 4.0
-    )
+    mapper = ParityMapper(num_particles=num_particles)
+
+    solver_type = "vqe"
+    if solver_type == "numpy":
+        solver = NumPyMinimumEigensolver()
+        solver.filter_criterion = lambda state, val, aux: np.isclose(
+            aux["ParticleNumber"][0], num_electrons
+        )
+    elif solver_type == "vqe":
+        # setup the initial state for the ansatz
+        init_state = HartreeFock(num_spatial_orbitals, num_particles, mapper)
+
+        # setup the ansatz for VQE
+        num_qubits = 2 * num_spatial_orbitals
+        ansatz = EfficientSU2(num_qubits, reps=1, insert_barriers=True)
+
+        # add the initial stateb
+        ansatz.compose(init_state, front=True, inplace=True)
+
+        # setup and run VQE
+        backend = AerSimulator(method="automatic")
+        estimator = aer_estimator(
+            backend_options=backend.options._fields,
+        )
+
+        # setup optimizer
+        optimizer = SPSA()
+
+        solver = VQE(estimator, ansatz, optimizer)
+
     algo = GroundStateEigensolver(mapper, solver)
 
     dft_solver = DFTEmbeddingSolver(active_space, algo)
@@ -67,12 +100,12 @@ def _main():
     # history_length = 10
     # dft_solver.damp_density = lambda history: np.mean(history[-history_length:])
     # (2) density mixing using a constant damping parameter `_alpha`
-    # alpha = 0.5
-    # dft_solver.damp_density = (
-    #     lambda history: alpha * history[-2] + (1.0 - alpha) * history[-1]
-    #     if len(history) > 1
-    #     else history[-1]
-    # )
+    alpha = 0.5
+    dft_solver.damp_density = (
+        lambda history: alpha * history[-2] + (1.0 - alpha) * history[-1]
+        if len(history) > 1
+        else history[-1]
+    )
 
     result = dft_solver.solve(driver, omega)
     print(result)
