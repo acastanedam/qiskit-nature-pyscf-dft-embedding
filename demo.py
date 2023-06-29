@@ -25,13 +25,24 @@ settings.use_pauli_sum_op = False
 settings.use_symmetry_reduced_integrals = True
 
 
+from dft_embedding_solver.dft_embedding_solver import logging, LOGGER
+from qiskit_nature import logging as nature_logging
+
+LOG_LEVEL = logging.DEBUG
+logging.basicConfig(level=LOG_LEVEL)
+
+nature_logging.set_levels_for_names(
+    {"qiskit_nature": LOG_LEVEL, "qiskit": LOG_LEVEL})
+
+LOGGER.setLevel(LOG_LEVEL)
+
 def _main():
     omega = 1.0
 
     # setup driver
     driver = PySCFDriver(
         atom="O 0.0 0.0 0.115; H 0.0 0.754 -0.459; H 0.0 -0.754 -0.459",
-        basis="6-31g*",
+        basis="sto3g",
         method=MethodType.RKS,
         xc_functional=f"ldaerf + lr_hf({omega})",
         xcf_library="xcfun",

@@ -20,6 +20,7 @@ from __future__ import annotations
 from copy import deepcopy
 
 import numpy as np
+
 from qiskit_nature.second_q.algorithms import GroundStateSolver
 from qiskit_nature.second_q.drivers import PySCFDriver
 from qiskit_nature.second_q.operators import ElectronicIntegrals
@@ -27,6 +28,9 @@ from qiskit_nature.second_q.problems import ElectronicBasis, ElectronicStructure
 from qiskit_nature.second_q.properties import ElectronicDensity
 from qiskit_nature.second_q.transformers import ActiveSpaceTransformer, BasisTransformer
 
+import logging
+
+LOGGER = logging.getLogger(__name__)
 
 class DFTEmbeddingSolver:
     """A class to solve the DFT-Embedding problem by means of range-separation.
@@ -66,6 +70,7 @@ class DFTEmbeddingSolver:
             final iteration.
         """
         # 1. run the reference calculation
+        LOGGER.info("Running pyscf")
         driver.run_pyscf()
 
         # 2. build the AO-to-MO basis transformer to ensure constant MOs during entire procedure
@@ -82,6 +87,7 @@ class DFTEmbeddingSolver:
         )
 
         # 3. generate the problem with range-separated 2-body terms
+        LOGGER.info("Generate range separated problem")
         with driver._mol.with_range_coulomb(  # pylint: disable=protected-access
             omega=omega
         ):
@@ -95,6 +101,7 @@ class DFTEmbeddingSolver:
             problem.properties.electronic_density = total_mo_density
 
         # 4. prepare the active space by initializing it with the total problem size information
+        LOGGER.info("Set active space and init densities")
         self.active_space.prepare_active_space(
             problem.num_particles,
             problem.num_spatial_orbitals,
@@ -126,10 +133,12 @@ class DFTEmbeddingSolver:
         n_iter = 0
 
         # 6. finally run the iterative embedding
+        LOGGER.info("Run SCF")
         while n_iter < self.max_iter:
             n_iter += 1
 
             # a) expand the active density into the dimensions of the total system
+            LOGGER.debug(f"Set total density (step {n_iter})")
             active_mo_density = (
                 self.active_space.active_basis.invert().transform_electronic_integrals(
                     active_density_history[-1]
@@ -153,6 +162,7 @@ class DFTEmbeddingSolver:
                 )
 
             # e) evaluate the total energy at the new total density
+            LOGGER.debug(f"Solve DFT SCF (step {n_iter})")
             e_tot = driver._calc.energy_tot(dm=rho)  # pylint: disable=protected-access
             # f) also evaluate the total Fock operator at the new total density
             (
@@ -164,6 +174,7 @@ class DFTEmbeddingSolver:
             )
 
             # g) update the active space transformer components
+            LOGGER.debug(f"Update active density (step {n_iter})")
             self.active_space.active_density = active_mo_density
             self.active_space.reference_inactive_energy = e_tot - e_nuc
             self.active_space.reference_inactive_fock = (
@@ -176,6 +187,7 @@ class DFTEmbeddingSolver:
             as_problem = self.active_space.transform(problem)
 
             # i) solve the active space problem
+            LOGGER.debug(f"Solve VQE SCF (step {n_iter})")
             result = self.solver.solve(as_problem)
 
             # j) append the reduced-size active density in the MO basis to the history, taking into
@@ -189,7 +201,9 @@ class DFTEmbeddingSolver:
             # k) check for convergence
             e_prev = e_next
             e_next = result.total_energies[0]
-            converged = np.abs(e_prev - e_next) < self.threshold
+            residual = np.abs(e_prev - e_next)
+            converged =  residual < self.threshold
+            LOGGER.info(f"Residual a step {n_iter}: {residual}")
             if converged:
                 break
 
