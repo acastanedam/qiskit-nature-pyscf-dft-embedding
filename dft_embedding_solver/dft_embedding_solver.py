@@ -208,11 +208,14 @@ class DFTEmbeddingSolver:
             residual = np.abs(e_prev - e_next)
             converged =  residual < self.threshold
 
-            if self.solver.solver.__class__.__name__ == "VQE":
-                if self.callback is not None:
+            if self.callback is not None:
+                if self.solver.solver.__class__.__name__ == "VQE":
                     params = result.raw_result.optimal_point
                     value = result.raw_result.optimal_value
-                    self.callback(n_iter, params, value)
+                else:
+                    params = []
+                    value = result.raw_result.eigenvalue
+                self.callback(n_iter, params, value)
 
             if n_iter > 1:
                 LOGGER.info(f"Residual a step {n_iter}: {residual}")

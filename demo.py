@@ -41,7 +41,7 @@ nature_logging.set_levels_for_names(
 
 LOGGER.setLevel(LOG_LEVEL)
 
-callback_file = f"vqembd_callback.data"
+callback_file = f"embd_callback.data"
 intermediate_info = {"nfev": [], "parameters": [], "energy": []}
 
 def callback(nfev, parameters, energy):
@@ -79,7 +79,7 @@ def _main():
     # setup solver
     mapper = ParityMapper(num_particles=num_particles)
 
-    solver_type = "vqe"
+    solver_type = "numpy"
     if solver_type == "numpy":
         solver = NumPyMinimumEigensolver()
         solver.filter_criterion = lambda state, val, aux: np.isclose(
