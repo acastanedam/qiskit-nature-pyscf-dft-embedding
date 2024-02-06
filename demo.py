@@ -11,27 +11,25 @@
 # that they have been altered from the originals.
 
 import numpy as np
-from qiskit.algorithms.minimum_eigensolvers import NumPyMinimumEigensolver
+from qiskit_algorithms.minimum_eigensolvers import NumPyMinimumEigensolver
 from qiskit_nature.second_q.algorithms import GroundStateEigensolver
 from qiskit_nature.second_q.drivers import MethodType, PySCFDriver
-from qiskit_nature.second_q.mappers import ParityMapper, QubitConverter
+from qiskit_nature.second_q.mappers import ParityMapper
 from qiskit_nature.second_q.transformers import ActiveSpaceTransformer
 from qiskit_nature.settings import settings
 from qiskit_nature.second_q.circuit.library import HartreeFock
 from qiskit.circuit.library import EfficientSU2
-from qiskit.algorithms.optimizers import SPSA
+from qiskit_algorithms.optimizers import SPSA
 from qiskit_aer.primitives import Estimator as aer_estimator
 from qiskit_aer import AerSimulator
-from qiskit.algorithms.minimum_eigensolvers import VQE
+from qiskit_algorithms.minimum_eigensolvers import VQE
 
 from dft_embedding_solver import DFTEmbeddingSolver
 
 from dft_embedding_solver.dft_embedding_solver import logging, LOGGER
 from qiskit_nature import logging as nature_logging
 
-settings.tensor_unwrapping = False
-settings.use_pauli_sum_op = False
-settings.use_symmetry_reduced_integrals = True
+settings.optimize_einsum = True
 
 LOG_LEVEL = logging.DEBUG
 logging.basicConfig(level=LOG_LEVEL)
